@@ -7,6 +7,8 @@ import {ERC20, SafeTransferLib} from "@solmate/src/utils/SafeTransferLib.sol";
 
 import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {SafeMath} from "@openzeppelin/contracts/utils/math/SafeMath.sol";
+
 
 /// @title Universal Rewards Distributor
 /// @author MerlinEgalite
@@ -15,6 +17,7 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 ///         https://github.com/morpho-dao/morpho-v1/blob/main/src/common/rewards-distribution/RewardsDistributor.sol
 contract UniversalRewardsDistributor is IUniversalRewardsDistributor, Ownable {
     using SafeTransferLib for ERC20;
+    using SafeMath for uint256;
 
     /* STORAGE */
 
@@ -45,15 +48,12 @@ contract UniversalRewardsDistributor is IUniversalRewardsDistributor, Ownable {
     /// @param proof The merkle proof that validates this claim.
     function claim(address account, address reward, uint256 claimable, bytes32[] calldata proof) external {
         bytes32 candidateRoot = MerkleProof.processProof(proof, keccak256(abi.encodePacked(account, reward, claimable)));
-        if (candidateRoot != root) revert ProofInvalidOrExpired();
+        require(candidateRoot == root, "ProofInvalidOrExpired");
 
         uint256 alreadyClaimed = claimed[account][reward];
-        if (claimable <= alreadyClaimed) revert AlreadyClaimed();
+        require(claimable > alreadyClaimed, "AlreadyClaimed");
 
-        uint256 amount;
-        unchecked {
-            amount = claimable - alreadyClaimed;
-        }
+        uint256 amount = claimable.sub(alreadyClaimed);
 
         claimed[account][reward] = claimable;
 
